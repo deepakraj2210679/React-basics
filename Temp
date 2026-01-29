@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Employee Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-green-50 min-h-screen flex justify-center items-start py-10">
+
+  <div class="w-full max-w-5xl bg-white rounded-xl shadow-xl p-8">
+
+    <!-- Header -->
+    <h1 class="text-2xl font-bold text-center text-white bg-green-700 py-3 rounded-lg mb-6">
+      Employee Management System
+    </h1>
+
+    <!-- Error Message -->
+    <p id="errorMsg" class="text-red-600 font-semibold text-center mb-4 hidden"></p>
+
+    <!-- Form -->
+    <form id="employeeForm" class="grid grid-cols-2 gap-4 mb-6">
+      <input type="hidden" id="editIndex">
+
+      <!-- Basic Info -->
+      <div>
+        <label class="text-sm font-semibold text-green-700">Employee ID</label>
+        <input id="empId" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Employee Name</label>
+        <input id="empName" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Age</label>
+        <input id="age" type="number" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Email</label>
+        <input id="email" type="email" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Phone Number</label>
+        <input id="phone" placeholder="10-digit mobile"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Department</label>
+        <select id="department"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+          <option value="">Select Department</option>
+          <option>HR</option>
+          <option>Development</option>
+          <option>Testing</option>
+          <option>Marketing</option>
+          <option>Finance</option>
+        </select>
+      </div>
+
+      <!-- Gender -->
+      <div>
+        <label class="text-sm font-semibold text-green-700">Gender</label>
+        <div class="flex gap-4 mt-2 text-gray-700">
+          <label><input type="radio" name="gender" value="Male"> Male</label>
+          <label><input type="radio" name="gender" value="Female"> Female</label>
+          <label><input type="radio" name="gender" value="Other"> Other</label>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Date of Joining</label>
+        <input id="doj" type="date"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <!-- Address -->
+      <div class="col-span-2">
+        <label class="text-sm font-semibold text-green-700">Address</label>
+        <textarea id="address" rows="3"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400"></textarea>
+      </div>
+
+      <!-- Buttons -->
+      <div class="col-span-2 flex gap-3 justify-center mt-4">
+        <button type="submit"
+          class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          Add / Update
+        </button>
+        <button type="button" onclick="clearForm()"
+          class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+          Clear
+        </button>
+      </div>
+    </form>
+
+    <!-- Table -->
+    <table class="w-full text-sm border rounded overflow-hidden">
+      <thead class="bg-green-700 text-white">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Dept</th>
+          <th>Phone</th>
+          <th>Gender</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody" class="text-center text-gray-700"></tbody>
+    </table>
+
+  </div>
+
+<script>
+  let employees = JSON.parse(localStorage.getItem("employees")) || [];
+  const tableBody = document.getElementById("tableBody");
+  const errorMsg = document.getElementById("errorMsg");
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+    employees.forEach((e, i) => {
+      tableBody.innerHTML += `
+        <tr class="border-b hover:bg-green-50">
+          <td class="font-semibold text-green-800">${e.id}</td>
+          <td>${e.name}</td>
+          <td>${e.department}</td>
+          <td>${e.phone}</td>
+          <td>${e.gender}</td>
+          <td class="space-x-2">
+            <button onclick="editEmployee(${i})" class="bg-yellow-400 px-2 py-1 rounded">Edit</button>
+            <button onclick="deleteEmployee(${i})" class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+    localStorage.setItem("employees", JSON.stringify(employees));
+  }
+
+  document.getElementById("employeeForm").addEventListener("submit", e => {
+    e.preventDefault();
+    errorMsg.classList.add("hidden");
+
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const gender = document.querySelector('input[name="gender"]:checked')?.value;
+
+    if (
+      !empId.value || !empName.value || !age.value || !email.value ||
+      !phone.value || !department.value || !gender || !doj.value || !address.value
+    ) return showError("All fields are required.");
+
+    if (age.value < 18 || age.value > 65)
+      return showError("Age must be between 18 and 65.");
+
+    if (!emailRegex.test(email.value))
+      return showError("Invalid email format.");
+
+    if (!phoneRegex.test(phone.value))
+      return showError("Invalid phone number.");
+
+    if (new Date(doj.value) > new Date())
+      return showError("Date of joining cannot be in the future.");
+
+    const emp = {
+      id: empId.value,
+      name: empName.value,
+      age: age.value,
+      email: email.value,
+      phone: phone.value,
+      department: department.value,
+      gender,
+      doj: doj.value,
+      address: address.value
+    };
+
+    const idx = editIndex.value;
+    idx === "" ? employees.push(emp) : employees[idx] = emp;
+
+    clearForm();
+    renderTable();
+  });
+
+  function editEmployee(i) {
+    const e = employees[i];
+    empId.value = e.id;
+    empName.value = e.name;
+    age.value = e.age;
+    email.value = e.email;
+    phone.value = e.phone;
+    department.value = e.department;
+    document.querySelector(`input[value="${e.gender}"]`).checked = true;
+    doj.value = e.doj;
+    address.value = e.address;
+    editIndex.value = i;
+  }
+
+  function deleteEmployee(i) {
+    if (confirm("Delete this employee?")) {
+      employees.splice(i, 1);
+      renderTable();
+    }
+  }
+
+  function clearForm() {
+    employeeForm.reset();
+    editIndex.value = "";
+    errorMsg.classList.add("hidden");
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.remove("hidden");
+  }
+
+  renderTable();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Employee Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-green-50 min-h-screen flex justify-center items-start py-10">
+
+  <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl p-8">
+
+    <!-- Header -->
+    <h1 class="text-2xl font-bold text-center text-white bg-green-700 py-3 rounded-lg mb-6">
+      Employee Management System
+    </h1>
+
+    <!-- Error Message -->
+    <p id="errorMsg" class="text-red-600 font-semibold text-center mb-4 hidden"></p>
+
+    <!-- Form -->
+    <form id="employeeForm" class="grid grid-cols-2 gap-4 mb-6">
+      <input type="hidden" id="editIndex">
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Employee ID</label>
+        <input id="empId"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Employee Name</label>
+        <input id="empName"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Age</label>
+        <input id="age" type="number"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold text-green-700">Email Address</label>
+        <input id="email" type="email"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div class="col-span-2">
+        <label class="text-sm font-semibold text-green-700">Phone Number</label>
+        <input id="phone"
+          class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400"
+          placeholder="10-digit mobile number">
+      </div>
+
+      <!-- Buttons -->
+      <div class="col-span-2 flex gap-3 justify-center mt-4">
+        <button type="submit"
+          class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          Add / Update
+        </button>
+        <button type="button" onclick="clearForm()"
+          class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+          Clear
+        </button>
+      </div>
+    </form>
+
+    <!-- Table -->
+    <table class="w-full text-sm border rounded overflow-hidden">
+      <thead class="bg-green-700 text-white">
+        <tr>
+          <th class="p-2">ID</th>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody" class="text-center text-gray-700"></tbody>
+    </table>
+
+  </div>
+
+<script>
+  let employees = JSON.parse(localStorage.getItem("employees")) || [];
+  const tableBody = document.getElementById("tableBody");
+  const errorMsg = document.getElementById("errorMsg");
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+    employees.forEach((emp, index) => {
+      tableBody.innerHTML += `
+        <tr class="border-b hover:bg-green-50">
+          <td class="p-2 text-green-800 font-semibold">${emp.id}</td>
+          <td>${emp.name}</td>
+          <td>${emp.age}</td>
+          <td class="text-blue-600">${emp.email}</td>
+          <td>${emp.phone}</td>
+          <td class="space-x-2">
+            <button onclick="editEmployee(${index})"
+              class="bg-yellow-400 px-2 py-1 rounded hover:bg-yellow-500">
+              Edit
+            </button>
+            <button onclick="deleteEmployee(${index})"
+              class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+              Delete
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+    localStorage.setItem("employees", JSON.stringify(employees));
+  }
+
+  document.getElementById("employeeForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    errorMsg.classList.add("hidden");
+
+    const id = empId.value.trim();
+    const name = empName.value.trim();
+    const ageVal = Number(age.value);
+    const emailVal = email.value.trim();
+    const phoneVal = phone.value.trim();
+
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!id || !name || !ageVal || !emailVal || !phoneVal) {
+      showError("All fields are required.");
+      return;
+    }
+
+    if (ageVal < 18 || ageVal > 65) {
+      showError("Age must be between 18 and 65.");
+      return;
+    }
+
+    if (!emailRegex.test(emailVal)) {
+      showError("Enter a valid email address.");
+      return;
+    }
+
+    if (!phoneRegex.test(phoneVal)) {
+      showError("Phone number must be 10 digits and start with 6–9.");
+      return;
+    }
+
+    const emp = { id, name, age: ageVal, email: emailVal, phone: phoneVal };
+    const editIndex = document.getElementById("editIndex").value;
+
+    if (editIndex === "") {
+      employees.push(emp);
+    } else {
+      employees[editIndex] = emp;
+      document.getElementById("editIndex").value = "";
+    }
+
+    clearForm();
+    renderTable();
+  });
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.remove("hidden");
+  }
+
+  function editEmployee(index) {
+    const emp = employees[index];
+    empId.value = emp.id;
+    empName.value = emp.name;
+    age.value = emp.age;
+    email.value = emp.email;
+    phone.value = emp.phone;
+    document.getElementById("editIndex").value = index;
+  }
+
+  function deleteEmployee(index) {
+    if (confirm("Are you sure you want to delete this employee?")) {
+      employees.splice(index, 1);
+      renderTable();
+    }
+  }
+
+  function clearForm() {
+    document.getElementById("employeeForm").reset();
+    document.getElementById("editIndex").value = "";
+    errorMsg.classList.add("hidden");
+  }
+
+  renderTable();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Employee Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-green-50 min-h-screen flex justify-center items-start py-10">
+
+  <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8">
+    
+    <!-- Header -->
+    <h1 class="text-2xl font-bold text-center text-white bg-green-600 py-3 rounded-lg mb-6">
+      Employee Details
+    </h1>
+
+    <!-- Form -->
+    <form id="employeeForm" class="grid grid-cols-2 gap-4 mb-6">
+      <input type="hidden" id="editIndex">
+
+      <div>
+        <label class="text-sm font-semibold">Employee ID</label>
+        <input id="empId" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold">Employee Name</label>
+        <input id="empName" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold">Age</label>
+        <input id="age" type="number" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div>
+        <label class="text-sm font-semibold">Email Address</label>
+        <input id="email" type="email" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <div class="col-span-2">
+        <label class="text-sm font-semibold">Phone Number</label>
+        <input id="phone" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400">
+      </div>
+
+      <!-- Buttons -->
+      <div class="col-span-2 flex gap-3 justify-center mt-4">
+        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          Add
+        </button>
+        <button type="button" onclick="clearForm()" class="bg-gray-400 text-white px-6 py-2 rounded hover:bg-gray-500">
+          Clear
+        </button>
+      </div>
+    </form>
+
+    <!-- Table -->
+    <table class="w-full text-sm border">
+      <thead class="bg-green-600 text-white">
+        <tr>
+          <th class="p-2">ID</th>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody" class="text-center"></tbody>
+    </table>
+
+  </div>
+
+<script>
+  let employees = JSON.parse(localStorage.getItem("employees")) || [];
+
+  const form = document.getElementById("employeeForm");
+  const tableBody = document.getElementById("tableBody");
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+    employees.forEach((emp, index) => {
+      tableBody.innerHTML += `
+        <tr class="border-b">
+          <td class="p-2">${emp.id}</td>
+          <td>${emp.name}</td>
+          <td>${emp.age}</td>
+          <td>${emp.email}</td>
+          <td>${emp.phone}</td>
+          <td class="space-x-2">
+            <button onclick="editEmployee(${index})" class="bg-yellow-400 px-2 py-1 rounded">Edit</button>
+            <button onclick="deleteEmployee(${index})" class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+    localStorage.setItem("employees", JSON.stringify(employees));
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const emp = {
+      id: empId.value,
+      name: empName.value,
+      age: age.value,
+      email: email.value,
+      phone: phone.value
+    };
+
+    const editIndex = document.getElementById("editIndex").value;
+
+    if (editIndex === "") {
+      employees.push(emp);
+    } else {
+      employees[editIndex] = emp;
+      document.getElementById("editIndex").value = "";
+    }
+
+    clearForm();
+    renderTable();
+  });
+
+  function editEmployee(index) {
+    const emp = employees[index];
+    empId.value = emp.id;
+    empName.value = emp.name;
+    age.value = emp.age;
+    email.value = emp.email;
+    phone.value = emp.phone;
+    document.getElementById("editIndex").value = index;
+  }
+
+  function deleteEmployee(index) {
+    if (confirm("Delete this employee?")) {
+      employees.splice(index, 1);
+      renderTable();
+    }
+  }
+
+  function clearForm() {
+    form.reset();
+    document.getElementById("editIndex").value = "";
+  }
+
+  renderTable();
+</script>
+
+</body>
+</html>
+
+
